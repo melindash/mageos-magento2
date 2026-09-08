@@ -72,7 +72,15 @@ class Delete extends ExportController implements HttpPostActionInterface
             }
             $directoryWrite = $this->filesystem->getDirectoryWrite(DirectoryList::VAR_IMPORT_EXPORT);
             try {
-                $directoryWrite->delete($directoryWrite->getAbsolutePath() . 'export/' . $fileName);
+                $fileName = $directoryWrite->getDriver()->getRealPathSafety(DIRECTORY_SEPARATOR . $fileName);
+                $fileExist = $directoryWrite->isFile('export' . $fileName);
+                if (!$fileExist) {
+                    $this->messageManager->addErrorMessage(__(
+                        'Sorry, but the data is invalid or the file is not uploaded.'
+                    ));
+                    return $resultRedirect;
+                }
+                $directoryWrite->delete($directoryWrite->getAbsolutePath() . 'export' . $fileName);
                 $this->messageManager->addSuccessMessage(__('File %1 deleted', $fileName));
             } catch (ValidatorException $exception) {
                 $this->messageManager->addErrorMessage(
