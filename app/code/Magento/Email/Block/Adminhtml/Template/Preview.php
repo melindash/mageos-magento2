@@ -16,6 +16,11 @@ namespace Magento\Email\Block\Adminhtml\Template;
 class Preview extends \Magento\Backend\Block\Widget
 {
     /**
+     * @var string
+     */
+    private const ADMIN_RESOURCE = 'Magento_Email::template';
+
+    /**
      * @var \Magento\Framework\Filter\Input\MaliciousCode
      */
     protected $_maliciousCode;
@@ -55,6 +60,10 @@ class Preview extends \Magento\Backend\Block\Widget
      */
     protected function _toHtml()
     {
+        if (!$this->_authorization->isAllowed(self::ADMIN_RESOURCE)) {
+            return '';
+        }
+
         $request = $this->getRequest();
 
         $storeId = $this->getAnyStoreView()->getId();
