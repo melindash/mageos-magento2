@@ -16,4 +16,7 @@
             </argument>
         </arguments>
     </type>
+    <type name="Magento\Customer\Api\CustomerRepositoryInterface">
+        <plugin name="restrictedSearchFields" type="Magento\Customer\Model\Plugin\CustomerRepository\RestrictedFieldsPlugin" sortOrder="1"/>
+    </type>
 </config>
