@@ -1,0 +1,101 @@
+name: Port Adobe security patch
+
+# Ports an Adobe isolated security archive to one release-line branch with
+# generate-mirror-repo-js bin/apply-security-patch.js, and opens a PR: ready for
+# review when it applied cleanly, a draft when a person has to finish it. Merging
+# stays with maintainers.
+#
+# Rehearsal on melindash/mageos-magento2. Triggered by hand now; security-watch
+# will send repository_dispatch per resolved line.
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Bulletin or archive id, e.g. apsb26-153"
+        required: true
+      branch:
+        description: "Line branch, e.g. main or release/2.x"
+        required: true
+      archive:
+        description: "Adobe archive name without .zip, e.g. 2-4-9-oct-2026"
+        required: true
+      bulletin:
+        description: "Bulletin URL for the PR body"
+        required: false
+        default: ""
+  repository_dispatch:
+    types: [security-patch]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: port-security-patch-${{ inputs.branch || github.event.client_payload.branch }}
+  cancel-in-progress: false
+
+env:
+  # PR #356 (patch translation), pinned so a push to that branch cannot change what runs here.
+  PORTER_REPO: melindash/generate-mirror-repo-js
+  PORTER_REF: 8e201897c0984ffd605ffbb35f44fb1aaa69bc47
+
+jobs:
+  port:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      LABEL: ${{ inputs.label || github.event.client_payload.label }}
+      BRANCH: ${{ inputs.branch || github.event.client_payload.branch }}
+      ARCHIVE: ${{ inputs.archive || github.event.client_payload.archive }}
+      BULLETIN: ${{ inputs.bulletin || github.event.client_payload.bulletin }}
+    steps:
+      # The script comes from the workflow's own commit. The line branch may not have
+      # it, and the tool switches branches in that checkout while it runs.
+      - name: Check out this workflow's scripts
+        uses: actions/checkout@v4
+        with:
+          path: self
+          sparse-checkout: .github/scripts
+
+      - name: Check out the line branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          path: repos/mageos-magento2
+          fetch-depth: 1
+
+      - name: Check out the porting tool
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PORTER_REPO }}
+          ref: ${{ env.PORTER_REF }}
+          path: porter
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install the porting tool
+        run: npm ci --prefix porter --no-audit --no-fund
+
+      # Modules that ship from their own repositories map only when those checkouts
+      # sit beside this one; without them, a patch touching inventory or page builder
+      # comes back UNMAPPED.
+      - name: Clone the separately built repositories
+        run: |
+          for repo in mageos-security-package mageos-inventory mageos-magento2-page-builder mageos-adobe-stock-integration; do
+            git clone -q --depth 1 "https://github.com/mage-os/$repo.git" "repos/$repo"
+          done
+
+      - name: Port
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PORTER: ${{ github.workspace }}/porter
+          REPOS: ${{ github.workspace }}/repos
+          WORK: ${{ runner.temp }}/port
+        run: |
+          git -C repos/mageos-magento2 config user.name "github-actions[bot]"
+          git -C repos/mageos-magento2 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          bash self/.github/scripts/port-security-patch.sh
