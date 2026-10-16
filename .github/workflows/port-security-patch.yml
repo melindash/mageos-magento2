@@ -58,16 +58,15 @@ jobs:
           path: self
           sparse-checkout: .github/scripts
 
-      # --3way finds the patch's pre-image blobs by the ids in its index lines; a
-      # depth-1 clone lacks them, so every conflict comes back as a rejected file.
-      # A blobless clone has the history and fetches those blobs on demand.
+      # --3way finds the patch's pre-image blobs by the abbreviated ids in its index
+      # lines. A shallow clone lacks them and a blobless one cannot fetch an
+      # abbreviation on demand, so either turns every conflict into a rejected file.
       - name: Check out the line branch
         uses: actions/checkout@v4
         with:
           ref: ${{ env.BRANCH }}
           path: repos/mageos-magento2
           fetch-depth: 0
-          filter: blob:none
 
       - name: Check out the porting tool
         uses: actions/checkout@v4
