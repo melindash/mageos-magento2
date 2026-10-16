@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Magento\Email\Block\Adminhtml\Template;
 
+<<<<<<< ours
 use Exception;
 use Magento\Backend\Block\Template\Context;
 use Magento\Backend\Block\Widget;
@@ -16,6 +17,11 @@ use Magento\Email\Model\TemplateFactory;
 use Magento\Framework\Filter\Input\MaliciousCode;
 use Magento\Framework\Profiler;
 use Magento\Store\Model\Store;
+=======
+use Magento\Email\Model\Template\Validator as TemplateValidator;
+use Magento\Framework\Validation\ValidationException;
+use Magento\Framework\App\ObjectManager;
+>>>>>>> theirs
 
 /**
  * Email template preview block.
@@ -46,19 +52,41 @@ class Preview extends Widget
     protected $profilerName = 'email_template_proccessing';
 
     /**
+<<<<<<< ours
      * @param Context $context
      * @param MaliciousCode $maliciousCode
      * @param TemplateFactory $emailFactory
+=======
+     * @var TemplateValidator
+     */
+    private $templateValidator;
+
+    /**
+     * @param \Magento\Backend\Block\Template\Context $context
+     * @param \Magento\Framework\Filter\Input\MaliciousCode $maliciousCode
+     * @param \Magento\Email\Model\TemplateFactory $emailFactory
+>>>>>>> theirs
      * @param array $data
+     * @param TemplateValidator $templateValidator
      */
     public function __construct(
+<<<<<<< ours
         Context $context,
         MaliciousCode $maliciousCode,
         TemplateFactory $emailFactory,
         array $data = []
+=======
+        \Magento\Backend\Block\Template\Context $context,
+        \Magento\Framework\Filter\Input\MaliciousCode $maliciousCode,
+        \Magento\Email\Model\TemplateFactory $emailFactory,
+        array $data = [],
+        ?TemplateValidator $templateValidator = null
+>>>>>>> theirs
     ) {
         $this->_maliciousCode = $maliciousCode;
         $this->_emailFactory = $emailFactory;
+        $this->templateValidator = $templateValidator ?:
+            ObjectManager::getInstance()->get(TemplateValidator::class);
         parent::__construct($context, $data);
     }
 
@@ -83,10 +111,23 @@ class Preview extends Widget
         if ($id = (int)$request->getParam('id')) {
             $template->load($id);
         } else {
+            $rawText = $request->getParam('text');
+            $rawText = is_string($rawText) ? $rawText : '';
+            $rawStyles = $request->getParam('styles');
+            $rawStyles = is_string($rawStyles) ? $rawStyles : '';
+            try {
+                $this->templateValidator->validate($rawText);
+                if ($rawStyles !== '') {
+                    $this->templateValidator->validate($rawStyles);
+                }
+            } catch (ValidationException $e) {
+                throw new \Magento\Framework\Exception\LocalizedException(
+                    __('Template content validation failed. Please review template syntax.')
+                );
+            }
             $template->setTemplateType($request->getParam('type'));
-            $template->setTemplateText($this->_maliciousCode->filter($request->getParam('text')));
-            $template->setTemplateStyles($request->getParam('styles'));
-
+            $template->setTemplateText($this->_maliciousCode->filter($rawText));
+            $template->setTemplateStyles($rawStyles);
         }
 
         Profiler::start($this->profilerName);
