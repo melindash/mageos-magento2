@@ -84,7 +84,7 @@ READY=1
 [ "$STATUS" = "CLEAN" ] || READY=0
 [ -z "$MARKERS$LINT_FAILS" ] || READY=0
 
-as_list() { if [ -n "$1" ]; then printf '%s' "$1" | sed '/^$/d; s/.*/- `&`/'; else echo "- none"; fi; }
+as_list() { if [ -n "$1" ]; then printf '%s\n' "$1" | sed '/^$/d; s/.*/- `&`/'; else echo "- none"; fi; }
 
 BODY="$WORK/pr-body.md"
 {
