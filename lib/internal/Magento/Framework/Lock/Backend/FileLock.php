@@ -204,7 +204,7 @@ class FileLock implements LockManagerInterface
      */
     private function getLockPath(string $name): string
     {
-        return $this->path . $name;
+        return $this->path . hash('sha256', $name);
     }
 
     /**
