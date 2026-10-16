@@ -103,6 +103,8 @@ class Template implements FilterInterface
 
     /**
      * @var SignatureProvider|null
+     * @deprecated Signature-based deferral was superseded by out-of-band deferral via DeferredDirectiveRegistry.
+     * @see DeferredDirectiveRegistry
      */
     private $signatureProvider;
 
@@ -285,17 +287,50 @@ class Template implements FilterInterface
     }
 
     /**
-     * Processes template directives and returns an array that contains results produced by each directive.
+     * Defers a directive to the root template and returns the placeholder that represents it.
+     *
+     * @param string $directive
+     * @return string
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    protected function deferToParent(string $directive): string
+    {
+        return $this->deferredDirectiveRegistry->defer($directive);
+    }
+
+    /**
+     * Resolves directives that child templates deferred to the root template.
      *
      * @param string $value
-     * @param bool $isSigned
+     * @return string
+     * @throws \Exception
+     */
+    private function resolveDeferredDirectives(string $value): string
+    {
+        foreach ($this->deferredDirectiveRegistry->getAll() as $placeholder => $directive) {
+            if (strpos($value, $placeholder) === false) {
+                continue;
+            }
+
+            $value = str_replace($placeholder, $this->resolveDirectives($directive), $value);
+        }
+
+        $this->deferredDirectiveRegistry->clear();
+
+        return $value;
+    }
+
+    /**
+     * Processes directives and applies the results produced by each directive to the given value.
      *
-     * @return array
+     * @param string $value
+     *
+     * @return string
      *
      * @throws InvalidArgumentException
      * @throws \Magento\Framework\Exception\LocalizedException
      */
-    private function processDirectives($value, $isSigned = false): array
+    private function resolveDirectives(string $value): string
     {
         $results = [];
 
@@ -307,10 +342,6 @@ class Template implements FilterInterface
             }
 
             $pattern = $directiveProcessor->getRegularExpression();
-
-            if ($isSigned) {
-                $pattern = $this->embedSignatureIntoPattern($pattern);
-            }
 
             if (preg_match_all($pattern, $value, $constructions, PREG_SET_ORDER)) {
                 foreach ($constructions as $construction) {
@@ -337,7 +368,7 @@ class Template implements FilterInterface
             }
         }
 
-        return $results;
+        return $this->applyDirectivesResults($value, array_unique($results, SORT_REGULAR));
     }
 
     /**
@@ -373,38 +404,6 @@ class Template implements FilterInterface
         }
 
         return $value;
-    }
-
-    /**
-     * Modifies given regular expression pattern to be able to recognize signed directives.
-     *
-     * @param string $pattern
-     *
-     * @return string
-     *
-     * @throws \Magento\Framework\Exception\LocalizedException
-     */
-    private function embedSignatureIntoPattern(string $pattern): string
-    {
-        $signature = $this->signatureProvider->get();
-
-        $closingDelimiters = [
-            '(' => ')',
-            '{' => '}',
-            '[' => ']',
-            '<' => '>'
-        ];
-
-        $closingDelimiter = $openingDelimiter = substr(trim($pattern), 0, 1);
-
-        if (array_key_exists($openingDelimiter, $closingDelimiters)) {
-            $closingDelimiter = $closingDelimiters[$openingDelimiter];
-        }
-
-        $pattern = substr_replace($pattern, $signature, strpos($pattern, $openingDelimiter) + 1, 0);
-        $pattern = substr_replace($pattern, $signature, strrpos($pattern, $closingDelimiter), 0);
-
-        return $pattern;
     }
 
     /**
