@@ -17,7 +17,7 @@
 set -euo pipefail
 
 [[ "$LABEL" =~ ^[a-z0-9][a-z0-9-]{0,40}$ ]] || { echo "::error::bad label: $LABEL"; exit 1; }
-[[ "$BRANCH" =~ ^(main|release/[0-9]+\.x)$ ]] || { echo "::error::bad branch: $BRANCH"; exit 1; }
+[[ "$BRANCH" =~ ^(main|release/[0-9]+\.x|rehearsal/[0-9]+\.x)$ ]] || { echo "::error::bad branch: $BRANCH"; exit 1; }
 [[ "$ARCHIVE" =~ ^[0-9]+-[0-9]+-[0-9]+(-p[0-9]+)?-[a-z]{3}-[0-9]{4}$ ]] || { echo "::error::bad archive: $ARCHIVE"; exit 1; }
 
 REPO_DIR="$REPOS/mageos-magento2"
